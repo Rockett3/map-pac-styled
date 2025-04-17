@@ -1,5 +1,5 @@
 {
-  "name": "map-pac-styled",
+  "name": "map-pac-location",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
