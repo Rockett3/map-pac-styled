@@ -54,6 +54,11 @@ export default function App() {
   const [prix, setPrix] = useState('');
   const [categorie, setCategorie] = useState(CATEGORIES[0]);
   const [confirmation, setConfirmation] = useState('');
+  const [recherche, setRecherche] = useState('');
+  const [prixMin, setPrixMin] = useState('');
+  const [prixMax, setPrixMax] = useState('');
+  const [filtres, setFiltres] = useState(CATEGORIES);
+  const [ville, setVille] = useState('');
 
   useEffect(() => {
     onAuthStateChanged(auth, (currentUser) => {
@@ -77,6 +82,19 @@ export default function App() {
 
   const handleSignIn = () => signInWithRedirect(auth, provider);
   const handleSignOut = () => { signOut(auth); setUser(null); };
+  const handleFiltreChange = (e) => {
+    const { value, checked } = e.target;
+    setFiltres((prev) => checked ? [...prev, value] : prev.filter((cat) => cat !== value));
+  };
+
+  const handleCitySearch = async () => {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${ville}`);
+    const data = await response.json();
+    if (data[0]) {
+      const { lat, lon } = data[0];
+      setMapCenter([parseFloat(lat), parseFloat(lon)]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -123,6 +141,33 @@ export default function App() {
           ) : (
             <button onClick={handleSignIn}>Se connecter avec Google</button>
           )}
+        </div>
+
+        <h2>Chercher un article</h2>
+        <input type="text" placeholder="Recherche..." value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ width: '100%', marginBottom: '0.5rem' }} />
+
+        <div>
+          <strong>Prix</strong>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <input type="number" placeholder="Min" value={prixMin} onChange={(e) => setPrixMin(e.target.value)} style={{ width: '50%' }} />
+            <input type="number" placeholder="Max" value={prixMax} onChange={(e) => setPrixMax(e.target.value)} style={{ width: '50%' }} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: '0.5rem' }}>
+          <strong>Catégories</strong>
+          {CATEGORIES.map((cat) => (
+            <label key={cat} style={{ display: 'block' }}>
+              <input type="checkbox" value={cat} checked={filtres.includes(cat)} onChange={handleFiltreChange} /> {cat}
+            </label>
+          ))}
+        </div>
+
+        <hr />
+        <div>
+          <strong>📍 Ville</strong>
+          <input type="text" placeholder="Ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%', marginTop: '0.5rem' }} />
+          <button onClick={handleCitySearch} style={{ marginTop: '0.5rem' }}>🔎 Rechercher</button>
         </div>
 
         {user && (
