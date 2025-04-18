@@ -11,6 +11,7 @@ import {
   onAuthStateChanged,
   signOut
 } from 'firebase/auth';
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDOazVUze0UZUUEZreswoAzf0g4Mfy0ZEY",
@@ -23,6 +24,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 // Fix icônes Leaflet
@@ -35,11 +37,6 @@ L.Icon.Default.mergeOptions({
 
 const CATEGORIES = ['À donner', 'Bébé', 'Auto', 'Meubles', 'Jouets', 'Vêtements'];
 
-const annoncesDeTest = [
-  { id: 1, titre: 'Chaise', description: 'Meuble à donner', position: [45.5017, -73.5673], categorie: 'Meubles', prix: 0 },
-  { id: 2, titre: 'Poussette', description: 'Très bon état', position: [45.503, -73.57], categorie: 'Bébé', prix: 30 },
-];
-
 function ChangeView({ center }) {
   const map = useMap();
   useEffect(() => {
@@ -50,14 +47,13 @@ function ChangeView({ center }) {
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [recherche, setRecherche] = useState('');
-  const [filtres, setFiltres] = useState(CATEGORIES);
-  const [prixMin, setPrixMin] = useState('');
-  const [prixMax, setPrixMax] = useState('');
   const [mapCenter, setMapCenter] = useState([45.5017, -73.5673]);
-  const [ville, setVille] = useState('');
   const [formVisible, setFormVisible] = useState(false);
-  const mapRef = useRef();
+  const [titre, setTitre] = useState('');
+  const [description, setDescription] = useState('');
+  const [prix, setPrix] = useState('');
+  const [categorie, setCategorie] = useState(CATEGORIES[0]);
+  const [confirmation, setConfirmation] = useState('');
 
   useEffect(() => {
     onAuthStateChanged(auth, (currentUser) => {
@@ -66,7 +62,6 @@ export default function App() {
     });
     getRedirectResult(auth).catch(console.error);
 
-    // Centrer sur la géolocalisation utilisateur
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -74,7 +69,7 @@ export default function App() {
           setMapCenter([latitude, longitude]);
         },
         () => {
-          setMapCenter([45.5017, -73.5673]); // Montréal par défaut
+          setMapCenter([45.5017, -73.5673]);
         }
       );
     }
@@ -83,48 +78,39 @@ export default function App() {
   const handleSignIn = () => signInWithRedirect(auth, provider);
   const handleSignOut = () => { signOut(auth); setUser(null); };
 
-  const handleFiltreChange = (e) => {
-    const { value, checked } = e.target;
-    setFiltres((prev) => checked ? [...prev, value] : prev.filter((cat) => cat !== value));
-  };
-
-  const annoncesFiltrees = annoncesDeTest.filter((a) => {
-    const matchCategorie = filtres.includes('À donner') && a.prix === 0
-      ? true
-      : filtres.includes(a.categorie);
-    return (
-      matchCategorie &&
-      a.titre.toLowerCase().includes(recherche.toLowerCase()) &&
-      (prixMin === '' || a.prix >= parseFloat(prixMin)) &&
-      (prixMax === '' || a.prix <= parseFloat(prixMax))
-    );
-  });
-
-  const handleCitySearch = async () => {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${ville}`);
-    const data = await response.json();
-    if (data[0]) {
-      const { lat, lon } = data[0];
-      setMapCenter([parseFloat(lat), parseFloat(lon)]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'annonces'), {
+        titre,
+        description,
+        prix: parseFloat(prix),
+        categorie,
+        position: { lat: mapCenter[0], lng: mapCenter[1] },
+        user: {
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email
+        },
+        createdAt: serverTimestamp()
+      });
+      setConfirmation('Annonce ajoutée avec succès !');
+      setTitre(''); setDescription(''); setPrix(''); setCategorie(CATEGORIES[0]);
+      setTimeout(() => setConfirmation(''), 4000);
+      setFormVisible(false);
+    } catch (error) {
+      console.error('Erreur Firestore :', error);
     }
   };
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      <MapContainer center={mapCenter} zoom={13} style={{ flex: 1 }} ref={mapRef}>
+      <MapContainer center={mapCenter} zoom={13} style={{ flex: 1 }}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
         />
         <ChangeView center={mapCenter} />
-        {annoncesFiltrees.map((a) => (
-          <Marker key={a.id} position={a.position}>
-            <Popup>
-              <strong>{a.titre}</strong><br />{a.description}<br />
-              <em>{a.prix === 0 ? 'Gratuit' : a.prix + ' $'}</em>
-            </Popup>
-          </Marker>
-        ))}
       </MapContainer>
 
       <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '320px', background: '#ffffffee', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '1rem', zIndex: 1000 }}>
@@ -139,33 +125,6 @@ export default function App() {
           )}
         </div>
 
-        <h2>Chercher un article</h2>
-        <input type="text" placeholder="Recherche..." value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ width: '100%', marginBottom: '0.5rem' }} />
-
-        <div>
-          <strong>Prix</strong>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <input type="number" placeholder="Min" value={prixMin} onChange={(e) => setPrixMin(e.target.value)} style={{ width: '50%' }} />
-            <input type="number" placeholder="Max" value={prixMax} onChange={(e) => setPrixMax(e.target.value)} style={{ width: '50%' }} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: '0.5rem' }}>
-          <strong>Catégories</strong>
-          {CATEGORIES.map((cat) => (
-            <label key={cat} style={{ display: 'block' }}>
-              <input type="checkbox" value={cat} checked={filtres.includes(cat)} onChange={handleFiltreChange} /> {cat}
-            </label>
-          ))}
-        </div>
-
-        <hr />
-        <div>
-          <strong>📍 Ville</strong>
-          <input type="text" placeholder="Ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%', marginTop: '0.5rem' }} />
-          <button onClick={handleCitySearch} style={{ marginTop: '0.5rem' }}>🔎 Rechercher</button>
-        </div>
-
         {user && (
           <div style={{ marginTop: '1rem', textAlign: 'right' }}>
             <button onClick={() => setFormVisible(!formVisible)} style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#007bff', color: 'white', border: 'none' }}>
@@ -173,13 +132,24 @@ export default function App() {
             </button>
           </div>
         )}
+
+        {confirmation && <div style={{ marginTop: '1rem', color: 'green' }}>{confirmation}</div>}
       </div>
 
       {formVisible && (
         <div style={{ position: 'absolute', top: '6rem', right: '1rem', width: '320px', background: '#fff', padding: '1rem', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
           <h3>Nouvelle annonce</h3>
-          <p><em>(Formulaire à venir)</em></p>
-          <button onClick={() => setFormVisible(false)} style={{ marginTop: '0.5rem' }}>Fermer</button>
+          <form onSubmit={handleSubmit}>
+            <input type="text" placeholder="Titre" value={titre} onChange={(e) => setTitre(e.target.value)} required style={{ width: '100%', marginBottom: '0.5rem' }} />
+            <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required style={{ width: '100%', marginBottom: '0.5rem' }} />
+            <input type="number" placeholder="Prix" value={prix} onChange={(e) => setPrix(e.target.value)} required style={{ width: '100%', marginBottom: '0.5rem' }} />
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} style={{ width: '100%', marginBottom: '0.5rem' }}>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <button type="submit" style={{ width: '100%' }}>Publier</button>
+          </form>
         </div>
       )}
     </div>
