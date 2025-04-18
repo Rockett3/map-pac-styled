@@ -1,11 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut
+} from 'firebase/auth';
 
-// === Configuration Firebase ===
 const firebaseConfig = {
   apiKey: "AIzaSyDOazVUze0UZUUEZreswoAzf0g4Mfy0ZEY",
   authDomain: "map-pac-c3843.firebaseapp.com",
@@ -14,10 +19,11 @@ const firebaseConfig = {
   messagingSenderId: "341137715933",
   appId: "1:341137715933:web:356fe0cf7b24368695a134"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-// === Leaflet icon fix ===
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -25,10 +31,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// === Catégories ===
 const CATEGORIES = ['À donner', 'Bébé', 'Auto', 'Meubles', 'Jouets', 'Vêtements'];
 
-// === Annonces de test ===
 const annoncesDeTest = [
   { id: 1, titre: 'Chaise', description: 'Meuble à donner', position: [45.5017, -73.5673], categorie: 'Meubles', prix: 0 },
   { id: 2, titre: 'Poussette', description: 'Très bon état', position: [45.503, -73.57], categorie: 'Bébé', prix: 30 },
@@ -49,17 +53,18 @@ export default function App() {
   const [mapCenter, setMapCenter] = useState([45.5017, -73.5673]);
   const [ville, setVille] = useState('');
   const [formVisible, setFormVisible] = useState(false);
+  const mapRef = useRef();
 
-  const handleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    setUser(result.user);
-  };
+  useEffect(() => {
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        setUser(result.user);
+      }
+    });
+  }, []);
 
-  const handleSignOut = async () => {
-    await signOut(auth);
-    setUser(null);
-  };
+  const handleSignIn = () => signInWithRedirect(auth, provider);
+  const handleSignOut = () => { signOut(auth); setUser(null); };
 
   const handleFiltreChange = (e) => {
     const { value, checked } = e.target;
@@ -98,7 +103,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      <MapContainer center={mapCenter} zoom={13} style={{ flex: 1 }}>
+      <MapContainer center={mapCenter} zoom={13} style={{ flex: 1 }} ref={mapRef}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
@@ -118,8 +123,8 @@ export default function App() {
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           {user ? (
             <>
-              <div style={{ fontSize: '0.9rem' }}>Connecté en tant que <strong>{user.displayName}</strong></div>
-              <button onClick={handleSignOut}>Se déconnecter</button>
+              <div style={{ fontSize: '0.9rem' }}>Connecté : <strong>{user.displayName}</strong></div>
+              <button onClick={handleSignOut}>Déconnexion</button>
             </>
           ) : (
             <button onClick={handleSignIn}>Se connecter avec Google</button>
@@ -147,14 +152,13 @@ export default function App() {
         </div>
 
         <hr />
-
         <div>
           <strong>📍 Localisation</strong><br />
           <button onClick={handleGeolocate} style={{ marginTop: '0.5rem' }}>📍 Me localiser</button>
         </div>
 
         <div style={{ marginTop: '0.5rem' }}>
-          <input type="text" placeholder="Nom de ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%' }} />
+          <input type="text" placeholder="Ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%' }} />
           <button onClick={handleCitySearch} style={{ marginTop: '0.5rem' }}>🔎 Rechercher</button>
         </div>
 
@@ -170,7 +174,7 @@ export default function App() {
       {formVisible && (
         <div style={{ position: 'absolute', top: '6rem', right: '1rem', width: '320px', background: '#fff', padding: '1rem', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
           <h3>Nouvelle annonce</h3>
-          <p><em>(Fonctionnalité à venir)</em></p>
+          <p><em>(Formulaire à venir)</em></p>
           <button onClick={() => setFormVisible(false)} style={{ marginTop: '0.5rem' }}>Fermer</button>
         </div>
       )}
