@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
+  onAuthStateChanged,
   signOut
 } from 'firebase/auth';
 
@@ -24,6 +25,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Fix icônes Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -40,7 +42,9 @@ const annoncesDeTest = [
 
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center);
+  useEffect(() => {
+    map.setView(center);
+  }, [center]);
   return null;
 }
 
@@ -56,11 +60,24 @@ export default function App() {
   const mapRef = useRef();
 
   useEffect(() => {
-    getRedirectResult(auth).then((result) => {
-      if (result?.user) {
-        setUser(result.user);
-      }
+    onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) setUser(currentUser);
+      else setUser(null);
     });
+    getRedirectResult(auth).catch(console.error);
+
+    // Centrer sur la géolocalisation utilisateur
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setMapCenter([latitude, longitude]);
+        },
+        () => {
+          setMapCenter([45.5017, -73.5673]); // Montréal par défaut
+        }
+      );
+    }
   }, []);
 
   const handleSignIn = () => signInWithRedirect(auth, provider);
@@ -82,15 +99,6 @@ export default function App() {
       (prixMax === '' || a.prix <= parseFloat(prixMax))
     );
   });
-
-  const handleGeolocate = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude, longitude } = pos.coords;
-        setMapCenter([latitude, longitude]);
-      });
-    }
-  };
 
   const handleCitySearch = async () => {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${ville}`);
@@ -153,12 +161,8 @@ export default function App() {
 
         <hr />
         <div>
-          <strong>📍 Localisation</strong><br />
-          <button onClick={handleGeolocate} style={{ marginTop: '0.5rem' }}>📍 Me localiser</button>
-        </div>
-
-        <div style={{ marginTop: '0.5rem' }}>
-          <input type="text" placeholder="Ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%' }} />
+          <strong>📍 Ville</strong>
+          <input type="text" placeholder="Ville ou code postal" value={ville} onChange={(e) => setVille(e.target.value)} style={{ width: '100%', marginTop: '0.5rem' }} />
           <button onClick={handleCitySearch} style={{ marginTop: '0.5rem' }}>🔎 Rechercher</button>
         </div>
 
