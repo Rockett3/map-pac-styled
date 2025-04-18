@@ -5,14 +5,14 @@ import L from 'leaflet';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
-// === Configuration Firebase (à personnaliser avec tes vraies infos Firebase plus tard) ===
+// === Configuration Firebase ===
 const firebaseConfig = {
-  apiKey: "AIzaSyXXXXXXX",
-  authDomain: "ton-projet.firebaseapp.com",
-  projectId: "ton-projet",
-  storageBucket: "ton-projet.appspot.com",
-  messagingSenderId: "000000000",
-  appId: "1:000000000:web:XXXXXXX"
+  apiKey: "AIzaSyDOazVUze0UZUUEZreswoAzf0g4Mfy0ZEY",
+  authDomain: "map-pac-c3843.firebaseapp.com",
+  projectId: "map-pac-c3843",
+  storageBucket: "map-pac-c3843.firebasestorage.app",
+  messagingSenderId: "341137715933",
+  appId: "1:341137715933:web:356fe0cf7b24368695a134"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
