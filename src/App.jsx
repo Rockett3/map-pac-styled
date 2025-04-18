@@ -122,6 +122,45 @@ export default function App() {
   };
 
   return (
-    // CONTENU PRÉCÉDENT ICI
-  );
-}
+  <div style={{ display: 'flex', height: '100vh', fontFamily: 'Arial, sans-serif' }}>
+    <MapContainer center={mapCenter} zoom={13} style={{ flex: 1 }}>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="&copy; OpenStreetMap contributors"
+      />
+      <ChangeView center={mapCenter} />
+    </MapContainer>
+
+    <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '320px', background: '#ffffffee', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '1rem', zIndex: 1000 }}>
+      <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#007bff', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                  {user.displayName?.charAt(0).toUpperCase() || '?'}
+                </div>
+              )}
+              <div style={{ fontSize: '0.9rem' }}>Bonjour, <strong>{user.displayName}</strong></div>
+            </div>
+            <button onClick={handleSignOut} style={{ marginLeft: '0.5rem' }}>Déconnexion</button>
+          </div>
+        ) : (
+          <div>
+            <button onClick={handleSignIn}>Se connecter avec Google</button>
+            <div style={{ color: 'red', fontWeight: 'bold', marginTop: '1rem' }}>
+              ❗ Vous devez vous connecter pour vendre un article ou voir votre profil.
+            </div>
+          </div>
+        )}
+      </div>
+
+      <h2>Chercher un article</h2>
+      <input type="text" placeholder="Recherche..." value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ width: '100%', marginBottom: '0.5rem' }} />
+
+      <div>
+        <strong>Prix</strong>
+        <div style={{ display: 'flex', gap
+
