@@ -1,1 +1,1 @@
-export default function App() { return <div>Correctif prêt</div>; }
+export default function App() { return <div>Chargement complet…</div>; }
