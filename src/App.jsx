@@ -1,1 +1,1 @@
-// Le contenu de App.jsx sera injecté ensuite
+export default function App() { return <div>Correctif prêt</div>; }
